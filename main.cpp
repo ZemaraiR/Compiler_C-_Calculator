@@ -1,5 +1,5 @@
 #include <iostream>
-#include <display.h>
+#include <Display.h>
 
 
 int main()
