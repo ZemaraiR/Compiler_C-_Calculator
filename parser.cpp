@@ -483,7 +483,7 @@ vector<Token> ParserInterpreter::captureBlockTokens()
     {
         if (tokens[current].type == TokenType::LBRACE)
         {
-            braceCount
+            braceCount++;
         }
         if (tokens[current].type == TokenType::RBRACE)
         {
