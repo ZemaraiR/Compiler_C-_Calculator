@@ -321,12 +321,18 @@ pair<int, ASTNode*> ParserInterpreter::primary()
 }
 
 // Statement parsing
-void ParserInterpreter::declaration() {
-    if (match({TokenType::INT_KW})) { intDeclaration(); return; }
+void ParserInterpreter::declaration() 
+{
+    if (match({TokenType::INT_KW})) 
+    { 
+        intDeclaration(); 
+        return; 
+    }
     statement();
 }
 
-void ParserInterpreter::intDeclaration() {
+void ParserInterpreter::intDeclaration() 
+{
     Token name = consume(TokenType::IDENTIFIER, "expected variable name after 'int'");
     consume(TokenType::ASSIGN, "expected '=' in declaration");
 
@@ -338,17 +344,23 @@ void ParserInterpreter::intDeclaration() {
     ASTNode* exprNode = result.second;
     consume(TokenType::SEMICOLON, "expected ';' after declaration");
 
-    if (name.type != TokenType::INVALID) {
+    if (name.type != TokenType::INVALID) 
+    {
         variables[name.lexeme] = value;
         trackDef(name.lexeme);
         emit("  STORE R0, [" + name.lexeme + "]");
 
         // memory allocation
         bool found = false;
-        for (int i = 0; i < memoryMap.size(); i++) {
-            if (memoryMap[i].name == name.lexeme) { found = true; break; }
+        for (int i = 0; i < memoryMap.size(); i++) 
+        {
+            if (memoryMap[i].name == name.lexeme) 
+            { 
+                found = true; break; 
+            }
         }
-        if (!found) {
+        if (!found) 
+        {
             MemEntry me;
             me.name = name.lexeme;
             me.address = nextAddress;
@@ -357,7 +369,8 @@ void ParserInterpreter::intDeclaration() {
             nextAddress += 4;
         }
 
-        if (makeAST) {
+        if (makeAST) 
+        {
             ASTNode* decl = new ASTNode("DECLARE");
             decl->addChild(new ASTNode("int " + name.lexeme));
             decl->addChild(new ASTNode("="));
@@ -369,17 +382,39 @@ void ParserInterpreter::intDeclaration() {
     endStatement();
 }
 
-void ParserInterpreter::statement() {
-    if (match({TokenType::PRINT_KW})) { printStatement(); return; }
-    if (match({TokenType::IF_KW})) { ifStatement(); return; }
-    if (match({TokenType::WHILE_KW})) { whileStatement(); return; }
-    if (match({TokenType::LBRACE})) { block(); return; }
-    if (check(TokenType::IDENTIFIER)) { assignmentStatement(); return; }
+void ParserInterpreter::statement() 
+{
+    if (match({TokenType::PRINT_KW})) 
+    { 
+        printStatement(); 
+        return; 
+    }
+    if (match({TokenType::IF_KW})) 
+    { 
+        ifStatement(); 
+        return; 
+    }
+    if (match({TokenType::WHILE_KW})) 
+    { 
+        whileStatement(); 
+        return; 
+    }
+    if (match({TokenType::LBRACE})) 
+    { 
+        block(); 
+        return; 
+    }
+    if (check(TokenType::IDENTIFIER)) 
+    { 
+        assignmentStatement(); 
+        return; 
+    }
     errors.push_back("Line " + to_string(peek().line) + ": invalid statement");
     advance();
 }
 
-void ParserInterpreter::assignmentStatement() {
+void ParserInterpreter::assignmentStatement() 
+{
     Token name = advance();
     consume(TokenType::ASSIGN, "expected '=' in assignment");
 
@@ -393,14 +428,17 @@ void ParserInterpreter::assignmentStatement() {
 
     trackDef(name.lexeme);
 
-    if (variables.find(name.lexeme) == variables.end()) {
+    if (variables.find(name.lexeme) == variables.end()) 
+    {
         errors.push_back("Line " + to_string(name.line) + ": undeclared variable '" + name.lexeme + "'");
-    } else {
+    } else 
+    {
         variables[name.lexeme] = value;
     }
     emit("  STORE R0, [" + name.lexeme + "]");
 
-    if (makeAST) {
+    if (makeAST) 
+    {
         ASTNode* n = new ASTNode("ASSIGN");
         n->addChild(new ASTNode(name.lexeme));
         if (exprNode != nullptr) n->addChild(exprNode);
@@ -410,7 +448,8 @@ void ParserInterpreter::assignmentStatement() {
     endStatement();
 }
 
-void ParserInterpreter::printStatement() {
+void ParserInterpreter::printStatement() 
+{
     consume(TokenType::LPAREN, "expected '(' after 'print'");
 
     startStatement(previous().line, "print(...)");
@@ -425,7 +464,8 @@ void ParserInterpreter::printStatement() {
 
     emit("  OUT R0");
 
-    if (makeAST) {
+    if (makeAST) 
+    {
         ASTNode* n = new ASTNode("PRINT");
         if (exprNode != nullptr) n->addChild(exprNode);
         else n->addChild(new ASTNode(to_string(value)));
@@ -434,26 +474,35 @@ void ParserInterpreter::printStatement() {
     endStatement();
 }
 
-// =============================================
 // Block handling (for if/while)
-// =============================================
-
-vector<Token> ParserInterpreter::captureBlockTokens() {
+vector<Token> ParserInterpreter::captureBlockTokens() 
+{
     int braceCount = 1;
     int start = current;
-    while (!isAtEnd() && braceCount > 0) {
-        if (tokens[current].type == TokenType::LBRACE) braceCount++;
-        if (tokens[current].type == TokenType::RBRACE) braceCount--;
+    while (!isAtEnd() && braceCount > 0) 
+    {
+        if (tokens[current].type == TokenType::LBRACE)
+        {
+            braceCount
+        }
+        if (tokens[current].type == TokenType::RBRACE)
+        {
+            braceCount--;
+        }
         current++;
     }
     int end = current - 1;
     vector<Token> blockTokens;
-    for (int i = start; i < end; i++) blockTokens.push_back(tokens[i]);
+    for (int i = start; i < end; i++)
+    {
+        blockTokens.push_back(tokens[i]);
+    }
     blockTokens.push_back({TokenType::END_OF_FILE, "", tokens[end].line});
     return blockTokens;
 }
 
-void ParserInterpreter::executeBlockTokens(vector<Token> blockTokens) {
+void ParserInterpreter::executeBlockTokens(vector<Token> blockTokens) 
+{
     ParserInterpreter nested(blockTokens, variables, false, genAsm);
     nested.memoryMap = memoryMap;
     nested.nextAddress = nextAddress;
@@ -464,16 +513,29 @@ void ParserInterpreter::executeBlockTokens(vector<Token> blockTokens) {
     nextAddress = nested.nextAddress;
     labelCounter = nested.labelCounter;
     vector<int> nestedOut = nested.getOutputs();
-    for (int i = 0; i < nestedOut.size(); i++) outputs.push_back(nestedOut[i]);
+    for (int i = 0; i < nestedOut.size(); i++)
+    {
+        outputs.push_back(nestedOut[i]);
+    }
     vector<string> nestedErr = nested.getErrors();
-    for (int i = 0; i < nestedErr.size(); i++) errors.push_back(nestedErr[i]);
+    for (int i = 0; i < nestedErr.size(); i++)
+    {
+        errors.push_back(nestedErr[i]);
+    }
     vector<string> nestedAsm = nested.getAssembly();
-    for (int i = 0; i < nestedAsm.size(); i++) asmCode.push_back(nestedAsm[i]);
+    for (int i = 0; i < nestedAsm.size(); i++)
+    {
+        asmCode.push_back(nestedAsm[i]);
+    }
     vector<DataFlowInfo> nestedDF = nested.getDataFlow();
-    for (int i = 0; i < nestedDF.size(); i++) dataFlow.push_back(nestedDF[i]);
+    for (int i = 0; i < nestedDF.size(); i++)
+    {
+        dataFlow.push_back(nestedDF[i]);
+    }
 }
 
-void ParserInterpreter::ifStatement() {
+void ParserInterpreter::ifStatement() 
+{
     consume(TokenType::LPAREN, "expected '(' after 'if'");
     regCounter = 0;
     pair<int, ASTNode*> condResult = expression();
@@ -485,7 +547,8 @@ void ParserInterpreter::ifStatement() {
 
     vector<Token> elseBlock;
     bool hasElse = false;
-    if (match({TokenType::ELSE_KW})) {
+    if (match({TokenType::ELSE_KW})) 
+    {
         consume(TokenType::LBRACE, "expected '{' after 'else'");
         elseBlock = captureBlockTokens();
         hasElse = true;
@@ -523,7 +586,8 @@ void ParserInterpreter::ifStatement() {
     emit(endLabel + ":");
 }
 
-void ParserInterpreter::whileStatement() {
+void ParserInterpreter::whileStatement() 
+{
     consume(TokenType::LPAREN, "expected '(' after 'while'");
     int condStart = current;
     regCounter = 0;
@@ -557,11 +621,14 @@ void ParserInterpreter::whileStatement() {
     // subsequent iterations: only interpret (no duplicate asm/dataflow)
     bool firstIteration = true;
     int counter = 0;
-    while (condValue) {
-        if (firstIteration) {
+    while (condValue) 
+    {
+        if (firstIteration) 
+        {
             executeBlockTokens(loopBlock);
             firstIteration = false;
-        } else {
+        } else 
+        {
             // run without assembly gen to avoid duplicating code
             ParserInterpreter bodyParser(loopBlock, variables, false, false);
             bodyParser.parseProgram();
@@ -584,19 +651,20 @@ void ParserInterpreter::whileStatement() {
     emit(loopEnd + ":");
 }
 
-void ParserInterpreter::block() {
+void ParserInterpreter::block() 
+{
     while (!check(TokenType::RBRACE) && !isAtEnd()) declaration();
     consume(TokenType::RBRACE, "expected '}' after block");
 }
 
-// =============================================
 // Public methods
-// =============================================
-
-void ParserInterpreter::parseProgram() {
+void ParserInterpreter::parseProgram() 
+{
     if (genAsm && isTopLevel) emit("  ; --- program start ---");
-    while (!isAtEnd()) {
-        try { declaration(); } catch (...) {
+    while (!isAtEnd()) 
+    {
+        try { declaration(); } catch (...) 
+        {
             errors.push_back("Line " + to_string(peek().line) + ": parser error");
             synchronize();
         }
@@ -604,15 +672,37 @@ void ParserInterpreter::parseProgram() {
     if (genAsm && isTopLevel) emit("  HALT");
 }
 
-int ParserInterpreter::evaluateExpressionOnly() {
+int ParserInterpreter::evaluateExpressionOnly() 
+{
     current = 0;
     return expression().first;
 }
 
-vector<string> ParserInterpreter::getErrors() { return errors; }
-vector<int> ParserInterpreter::getOutputs() { return outputs; }
-unordered_map<string, int> ParserInterpreter::getVariables() { return variables; }
-vector<ASTNode*> ParserInterpreter::getAST() { return astRoots; }
-vector<string> ParserInterpreter::getAssembly() { return asmCode; }
-vector<DataFlowInfo> ParserInterpreter::getDataFlow() { return dataFlow; }
-vector<MemEntry> ParserInterpreter::getMemoryMap() { return memoryMap; }
+vector<string> ParserInterpreter::getErrors() 
+{ 
+    return errors; 
+}
+vector<int> ParserInterpreter::getOutputs() 
+{ 
+    return outputs; 
+}
+unordered_map<string, int> ParserInterpreter::getVariables() 
+{ 
+    return variables; 
+}
+vector<ASTNode*> ParserInterpreter::getAST() 
+{ 
+    return astRoots; 
+}
+vector<string> ParserInterpreter::getAssembly() 
+{ 
+    return asmCode; 
+}
+vector<DataFlowInfo> ParserInterpreter::getDataFlow() 
+{ 
+    return dataFlow; 
+}
+vector<MemEntry> ParserInterpreter::getMemoryMap() 
+{ 
+    return memoryMap; 
+}
