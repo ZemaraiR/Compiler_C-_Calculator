@@ -1,4 +1,4 @@
-#include "Lexer.h"
+#include "lexer.h"
 #include <cctype>
 
 // Lexical Analyzer implementation

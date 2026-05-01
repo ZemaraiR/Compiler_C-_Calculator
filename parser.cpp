@@ -1,4 +1,4 @@
-#include "Parser.h"
+#include "parser.h"
 
 // parser.cpp - Parser and Interpreter implementation
 
