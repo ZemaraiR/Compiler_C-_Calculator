@@ -1,8 +1,6 @@
 #include "lexer.h"
 #include <cctype>
 
-// Lexical Analyzer implementation
-
 Lexer::Lexer(string input) 
 {
     src = input;
@@ -44,7 +42,6 @@ vector<Token> Lexer::tokenize()
         if (c == '\n') { line++; advance(); continue; }
 
         // DFA for identifiers/keywords
-        // q0 --letter/--> q1, q1 --letter/digit/_--> q1
         if (isalpha(c) || c == '_') 
         {
             int start = pos;
@@ -60,7 +57,6 @@ vector<Token> Lexer::tokenize()
         }
 
         // DFA for number literals
-        // q0 --digit--> q1, q1 --digit--> q1
         if (isdigit(c)) 
         {
             int start = pos;
@@ -82,7 +78,6 @@ vector<Token> Lexer::tokenize()
         else if (ch == ';') tokens.push_back({TokenType::SEMICOLON, ";", line});
         else if (ch == '=') 
         {
-            // DFA: q0 --'='--> q1 --'='--> ACCEPT(==), q1 --other--> ACCEPT(=)
             if (match('=')) tokens.push_back({TokenType::EQ, "==", line});
             else tokens.push_back({TokenType::ASSIGN, "=", line});
         }

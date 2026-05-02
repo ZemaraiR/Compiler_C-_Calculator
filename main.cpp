@@ -18,20 +18,382 @@
 //   - No string literals
 //   - Maximum 10000 loop iterations (safety limit)
 
+// main.cpp - Mini C++ Compiler, CMPE 152
+
 #include <iostream>
 #include <vector>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include "token.h"
-#include "ASTNode.h"
 #include "lexer.h"
 #include "parser.h"
 #include "display.h"
 using namespace std;
 
-// Test programs
-string testProgram1() 
+// walks tokens and prints a simple AST
+void printAST(vector<Token> tokens)
+{
+    cout << "[ABSTRACT SYNTAX TREE]" << endl;
+
+    int i = 0;
+    while (i < tokens.size() && tokens[i].type != TokenType::END_OF_FILE)
+    {
+        if (tokens[i].type == TokenType::INT_KW)
+        {
+            string var = tokens[i + 1].lexeme;
+            string expr = "";
+            int j = i + 3;
+            while (j < tokens.size() && tokens[j].type != TokenType::SEMICOLON)
+            {
+                expr += tokens[j].lexeme + " ";
+                j++;
+            }
+            cout << "  DECLARE int " << var << " = " << expr << endl;
+            i = j + 1;
+        }
+        else if (tokens[i].type == TokenType::PRINT_KW)
+        {
+            string expr = "";
+            int j = i + 2;
+            while (j < tokens.size() && tokens[j].type != TokenType::RPAREN)
+            {
+                expr += tokens[j].lexeme + " ";
+                j++;
+            }
+            cout << "  PRINT( " << expr << ")" << endl;
+            i = j + 2;
+        }
+        else if (tokens[i].type == TokenType::IF_KW)
+        {
+            string cond = "";
+            int j = i + 2;
+            while (j < tokens.size() && tokens[j].type != TokenType::RPAREN)
+            {
+                cond += tokens[j].lexeme + " ";
+                j++;
+            }
+            cout << "  IF( " << cond << ")" << endl;
+            cout << "    THEN { ... }" << endl;
+
+            int braces = 0;
+            while (j < tokens.size())
+            {
+                if (tokens[j].type == TokenType::LBRACE) braces++;
+                if (tokens[j].type == TokenType::RBRACE)
+                {
+                    braces--;
+                    if (braces == 0) break;
+                }
+                j++;
+            }
+            j++;
+            if (j < tokens.size() && tokens[j].type == TokenType::ELSE_KW)
+            {
+                cout << "    ELSE { ... }" << endl;
+                braces = 0;
+                j++;
+                while (j < tokens.size())
+                {
+                    if (tokens[j].type == TokenType::LBRACE) braces++;
+                    if (tokens[j].type == TokenType::RBRACE)
+                    {
+                        braces--;
+                        if (braces == 0) break;
+                    }
+                    j++;
+                }
+                j++;
+            }
+            i = j;
+        }
+        else if (tokens[i].type == TokenType::WHILE_KW)
+        {
+            string cond = "";
+            int j = i + 2;
+            while (j < tokens.size() && tokens[j].type != TokenType::RPAREN)
+            {
+                cond += tokens[j].lexeme + " ";
+                j++;
+            }
+            cout << "  WHILE( " << cond << ")" << endl;
+            cout << "    BODY { ... }" << endl;
+
+            int braces = 0;
+            while (j < tokens.size())
+            {
+                if (tokens[j].type == TokenType::LBRACE) braces++;
+                if (tokens[j].type == TokenType::RBRACE)
+                {
+                    braces--;
+                    if (braces == 0) break;
+                }
+                j++;
+            }
+            i = j + 1;
+        }
+        else if (tokens[i].type == TokenType::IDENTIFIER &&
+                 i + 1 < tokens.size() && tokens[i + 1].type == TokenType::ASSIGN)
+        {
+            string var = tokens[i].lexeme;
+            string expr = "";
+            int j = i + 2;
+            while (j < tokens.size() && tokens[j].type != TokenType::SEMICOLON)
+            {
+                expr += tokens[j].lexeme + " ";
+                j++;
+            }
+            cout << "  ASSIGN " << var << " = " << expr << endl;
+            i = j + 1;
+        }
+        else
+        {
+            i++;
+        }
+    }
+    cout << endl;
+}
+
+// generates stack-based pseudo assembly from tokens
+void printAssembly(vector<Token> tokens)
+{
+    cout << "[GENERATED ASSEMBLY CODE]" << endl;
+    cout << "  ; program start" << endl;
+
+    int label = 0;
+    int i = 0;
+
+    while (i < tokens.size() && tokens[i].type != TokenType::END_OF_FILE)
+    {
+        if ((tokens[i].type == TokenType::INT_KW) ||
+            (tokens[i].type == TokenType::IDENTIFIER &&
+             i + 1 < tokens.size() && tokens[i + 1].type == TokenType::ASSIGN))
+        {
+            string var;
+            int start;
+            if (tokens[i].type == TokenType::INT_KW)
+            {
+                var = tokens[i + 1].lexeme;
+                start = i + 3;
+            }
+            else
+            {
+                var = tokens[i].lexeme;
+                start = i + 2;
+            }
+
+            int j = start;
+            while (j < tokens.size() && tokens[j].type != TokenType::SEMICOLON)
+            {
+                if (tokens[j].type == TokenType::NUMBER)
+                    cout << "  PUSH #" << tokens[j].lexeme << endl;
+                else if (tokens[j].type == TokenType::IDENTIFIER)
+                    cout << "  PUSH [" << tokens[j].lexeme << "]" << endl;
+                else if (tokens[j].type == TokenType::PLUS) cout << "  ADD" << endl;
+                else if (tokens[j].type == TokenType::MINUS) cout << "  SUB" << endl;
+                else if (tokens[j].type == TokenType::STAR) cout << "  MUL" << endl;
+                else if (tokens[j].type == TokenType::SLASH) cout << "  DIV" << endl;
+                j++;
+            }
+            cout << "  POP [" << var << "]" << endl;
+            i = j + 1;
+        }
+        else if (tokens[i].type == TokenType::PRINT_KW)
+        {
+            int j = i + 2;
+            while (j < tokens.size() && tokens[j].type != TokenType::RPAREN)
+            {
+                if (tokens[j].type == TokenType::NUMBER)
+                    cout << "  PUSH #" << tokens[j].lexeme << endl;
+                else if (tokens[j].type == TokenType::IDENTIFIER)
+                    cout << "  PUSH [" << tokens[j].lexeme << "]" << endl;
+                else if (tokens[j].type == TokenType::PLUS) cout << "  ADD" << endl;
+                else if (tokens[j].type == TokenType::MINUS) cout << "  SUB" << endl;
+                else if (tokens[j].type == TokenType::STAR) cout << "  MUL" << endl;
+                j++;
+            }
+            cout << "  OUT" << endl;
+            i = j + 2;
+        }
+        else if (tokens[i].type == TokenType::IF_KW)
+        {
+            label++;
+            int elseL = label;
+            int endL = label + 1;
+            label++;
+
+            cout << "  CMP_EQ 0" << endl;
+            cout << "  JMP_IF L" << elseL << endl;
+            cout << "  ; then branch" << endl;
+            cout << "  JMP L" << endL << endl;
+            cout << "  L" << elseL << ": ; else branch" << endl;
+            cout << "  L" << endL << ":" << endl;
+
+            int braces = 0;
+            int j = i;
+            while (j < tokens.size())
+            {
+                if (tokens[j].type == TokenType::LBRACE) braces++;
+                if (tokens[j].type == TokenType::RBRACE)
+                {
+                    braces--;
+                    if (braces == 0) break;
+                }
+                j++;
+            }
+            j++;
+            if (j < tokens.size() && tokens[j].type == TokenType::ELSE_KW)
+            {
+                j++;
+                braces = 0;
+                while (j < tokens.size())
+                {
+                    if (tokens[j].type == TokenType::LBRACE) braces++;
+                    if (tokens[j].type == TokenType::RBRACE)
+                    {
+                        braces--;
+                        if (braces == 0) break;
+                    }
+                    j++;
+                }
+                j++;
+            }
+            i = j;
+        }
+        else if (tokens[i].type == TokenType::WHILE_KW)
+        {
+            label++;
+            int startL = label;
+            int endL = label + 1;
+            label++;
+
+            cout << "  L" << startL << ": ; loop start" << endl;
+            cout << "  CMP_EQ 0" << endl;
+            cout << "  JMP_IF L" << endL << endl;
+            cout << "  ; loop body" << endl;
+            cout << "  JMP L" << startL << endl;
+            cout << "  L" << endL << ": ; loop end" << endl;
+
+            int braces = 0;
+            int j = i;
+            while (j < tokens.size())
+            {
+                if (tokens[j].type == TokenType::LBRACE) braces++;
+                if (tokens[j].type == TokenType::RBRACE)
+                {
+                    braces--;
+                    if (braces == 0) break;
+                }
+                j++;
+            }
+            i = j + 1;
+        }
+        else
+        {
+            i++;
+        }
+    }
+    cout << "  HALT" << endl;
+    cout << endl;
+}
+
+// scans tokens for DEF/USE per statement
+void printDataflow(vector<Token> tokens)
+{
+    cout << "[DATAFLOW ANALYSIS]" << endl;
+    cout << "  Line  Statement         DEF               USE" << endl;
+
+    int i = 0;
+    while (i < tokens.size() && tokens[i].type != TokenType::END_OF_FILE)
+    {
+        string def = "", use = "", desc = "";
+        int line = tokens[i].line;
+
+        if (tokens[i].type == TokenType::INT_KW && i + 1 < tokens.size())
+        {
+            def = tokens[i + 1].lexeme;
+            desc = "int " + def + " = ...";
+            int j = i + 3;
+            while (j < tokens.size() && tokens[j].type != TokenType::SEMICOLON)
+            {
+                if (tokens[j].type == TokenType::IDENTIFIER)
+                {
+                    if (!use.empty()) use += ", ";
+                    use += tokens[j].lexeme;
+                }
+                j++;
+            }
+            i = j + 1;
+        }
+        else if (tokens[i].type == TokenType::IDENTIFIER &&
+                 i + 1 < tokens.size() && tokens[i + 1].type == TokenType::ASSIGN)
+        {
+            def = tokens[i].lexeme;
+            desc = def + " = ...";
+            int j = i + 2;
+            while (j < tokens.size() && tokens[j].type != TokenType::SEMICOLON)
+            {
+                if (tokens[j].type == TokenType::IDENTIFIER)
+                {
+                    if (!use.empty()) use += ", ";
+                    use += tokens[j].lexeme;
+                }
+                j++;
+            }
+            i = j + 1;
+        }
+        else if (tokens[i].type == TokenType::PRINT_KW)
+        {
+            desc = "print(...)";
+            int j = i + 2;
+            while (j < tokens.size() && tokens[j].type != TokenType::RPAREN)
+            {
+                if (tokens[j].type == TokenType::IDENTIFIER)
+                {
+                    if (!use.empty()) use += ", ";
+                    use += tokens[j].lexeme;
+                }
+                j++;
+            }
+            i = j + 2;
+        }
+        else
+        {
+            i++;
+            continue;
+        }
+
+        if (def.empty()) def = "-";
+        if (use.empty()) use = "-";
+        while (desc.size() < 18) desc += " ";
+        while (def.size() < 18) def += " ";
+        cout << "  " << line << "     " << desc << def << use << endl;
+    }
+    cout << endl;
+}
+
+// shows where each variable sits in memory
+void printMemory(unordered_map<string, int> vars)
+{
+    if (vars.size() == 0) return;
+    cout << "[MEMORY MANAGEMENT]" << endl;
+    cout << "  Each int = 4 bytes, stack-based allocation" << endl;
+    cout << "  Address    Variable    Value" << endl;
+
+    int addr = 0x1000;
+    for (auto it = vars.begin(); it != vars.end(); it++)
+    {
+        string name = it->first;
+        while (name.size() < 12) name += " ";
+        cout << "  0x" << hex << addr << dec << "   " << name << it->second << endl;
+        addr += 4;
+    }
+    cout << "  Total: " << vars.size() * 4 << " bytes (" << vars.size() << " variables)" << endl;
+    cout << endl;
+}
+
+// test programs
+string testProgram1()
 {
     return "int x = 5;\n"
            "int y = 2;\n"
@@ -39,7 +401,7 @@ string testProgram1()
            "print(z);\n";
 }
 
-string testProgram2() 
+string testProgram2()
 {
     return "int x = 3;\n"
            "if (x > 5) {\n"
@@ -50,7 +412,7 @@ string testProgram2()
            "print(x + 10);\n";
 }
 
-string testProgram3() 
+string testProgram3()
 {
     return "int x = 0;\n"
            "int sum = 0;\n"
@@ -62,238 +424,90 @@ string testProgram3()
            "print(x);\n";
 }
 
-
-// Run a single test case
-void runProgram(string source, string title) 
+// run a test case
+void runProgram(string source, string title)
 {
     printHeader(title);
     printSourceCode(source);
 
-    // lexical analysis
     Lexer lexer(source);
     vector<Token> tokens = lexer.tokenize();
     vector<string> lexErrors = lexer.getErrors();
     printTokens(tokens);
 
-    if (lexErrors.size() > 0) 
+    if (lexErrors.size() > 0)
     {
-        cout << endl << "[LEXICAL ERRORS]" << endl;
-        printLine();
+        cout << "[LEXICAL ERRORS]" << endl;
         for (int i = 0; i < lexErrors.size(); i++)
-            cout << "  ERROR: " << lexErrors[i] << endl;
+            cout << "  " << lexErrors[i] << endl;
         return;
     }
 
-    // parse, interpret, and generate assembly
-    ParserInterpreter parser(tokens, true, true);
+    ParserInterpreter parser(tokens);
     parser.parseProgram();
     vector<string> parseErrors = parser.getErrors();
 
-    if (parseErrors.size() > 0) 
+    if (parseErrors.size() > 0)
     {
-        cout << endl << "[SYNTAX/SEMANTIC ERRORS]" << endl;
-        printLine();
+        cout << "[ERRORS]" << endl;
         for (int i = 0; i < parseErrors.size(); i++)
-            cout << "  ERROR: " << parseErrors[i] << endl;
+            cout << "  " << parseErrors[i] << endl;
     }
 
-    // AST
-    vector<ASTNode*> ast = parser.getAST();
-    if (ast.size() > 0) 
-    {
-        cout << endl << "[ABSTRACT SYNTAX TREE]" << endl;
-        printLine();
-        for (int i = 0; i < ast.size(); i++)
-            ast[i]->print("  ", i == ast.size() - 1);
-    }
+    printAST(tokens);
 
-    // symbol table
     unordered_map<string, int> vars = parser.getVariables();
-    if (vars.size() > 0) 
+    if (vars.size() > 0)
     {
-        cout << endl << "[SYMBOL TABLE]" << endl;
-        printLine();
-        cout << "  Variable        Type      Value" << endl;
-        cout << "  --------------------------------" << endl;
-        for (auto it = vars.begin(); it != vars.end(); it++) 
+        cout << "[SYMBOL TABLE]" << endl;
+        for (auto it = vars.begin(); it != vars.end(); it++)
         {
             string name = it->first;
-            int val = it->second;
-            while (name.size() < 16) name += " ";
-            cout << "  " << name << "int       " << val << endl;
+            while (name.size() < 12) name += " ";
+            cout << "  " << name << "int    " << it->second << endl;
         }
+        cout << endl;
     }
 
-    // program output
     vector<int> outs = parser.getOutputs();
-    cout << endl << "[PROGRAM OUTPUT]" << endl;
-    printLine();
-    if (outs.size() == 0) {
+    cout << "[PROGRAM OUTPUT]" << endl;
+    if (outs.size() == 0)
+    {
         cout << "  (no output)" << endl;
-    } else {
+    }
+    else
+    {
         for (int i = 0; i < outs.size(); i++)
             cout << "  >>> " << outs[i] << endl;
     }
+    cout << endl;
 
-    // assembly code (Requirement 2h)
-    vector<string> asmCode = parser.getAssembly();
-    if (asmCode.size() > 0) {
-        cout << endl << "[GENERATED ASSEMBLY CODE]" << endl;
-        printLine();
-        for (int i = 0; i < asmCode.size(); i++)
-            cout << "  " << asmCode[i] << endl;
-    }
-
-    // dataflow analysis (Requirement 2i)
-    vector<DataFlowInfo> dfData = parser.getDataFlow();
-    if (dfData.size() > 0) {
-        cout << endl << "[DATAFLOW ANALYSIS]" << endl;
-        printLine();
-        cout << "  Line  Statement         DEF (written)     USE (read)" << endl;
-        cout << "  -------------------------------------------------------" << endl;
-        for (int i = 0; i < dfData.size(); i++) {
-            string lineStr = to_string(dfData[i].line);
-            while (lineStr.size() < 4) lineStr += " ";
-            string stmtStr = dfData[i].statement;
-            while (stmtStr.size() < 18) stmtStr += " ";
-
-            string defStr = "";
-            for (int j = 0; j < dfData[i].defined.size(); j++) {
-                if (j > 0) defStr += ", ";
-                defStr += dfData[i].defined[j];
-            }
-            if (defStr.empty()) defStr = "-";
-            while (defStr.size() < 18) defStr += " ";
-
-            string useStr = "";
-            for (int j = 0; j < dfData[i].used.size(); j++) {
-                if (j > 0) useStr += ", ";
-                useStr += dfData[i].used[j];
-            }
-            if (useStr.empty()) useStr = "-";
-
-            cout << "  " << lineStr << stmtStr << defStr << useStr << endl;
-        }
-
-        // compute live variables at each point
-        cout << endl;
-        cout << "  Live Variable Analysis (backward):" << endl;
-        cout << "  A variable is 'live' if it may be used before being redefined." << endl;
-        cout << endl;
-
-        // simple backward analysis
-        unordered_set<string> liveSet;
-        vector<pair<int, unordered_set<string>>> liveAtPoint;
-        for (int i = dfData.size() - 1; i >= 0; i--) {
-            // add used variables
-            for (int j = 0; j < dfData[i].used.size(); j++) {
-                liveSet.insert(dfData[i].used[j]);
-            }
-            liveAtPoint.push_back(make_pair(dfData[i].line, liveSet));
-            // remove defined variables (killed)
-            for (int j = 0; j < dfData[i].defined.size(); j++) {
-                bool alsoUsed = false;
-                for (int k = 0; k < dfData[i].used.size(); k++) {
-                    if (dfData[i].used[k] == dfData[i].defined[j]) alsoUsed = true;
-                }
-                if (!alsoUsed) liveSet.erase(dfData[i].defined[j]);
-            }
-        }
-
-        for (int i = liveAtPoint.size() - 1; i >= 0; i--) {
-            cout << "  After line " << liveAtPoint[i].first << ": live = {";
-            bool first = true;
-            for (auto it = liveAtPoint[i].second.begin(); it != liveAtPoint[i].second.end(); it++) {
-                if (!first) cout << ", ";
-                cout << *it;
-                first = false;
-            }
-            cout << "}" << endl;
-        }
-    }
-
-    // memory management (Requirement 2j)
-    vector<MemEntry> memMap = parser.getMemoryMap();
-    if (memMap.size() > 0) {
-        cout << endl << "[MEMORY MANAGEMENT - STACK LAYOUT]" << endl;
-        printLine();
-        cout << "  Memory model: stack-based allocation for local variables" << endl;
-        cout << "  Each int variable uses 4 bytes on the stack." << endl;
-        cout << endl;
-        cout << "  Address     Size    Variable    Final Value" << endl;
-        cout << "  -------------------------------------------" << endl;
-
-        int totalSize = 0;
-        for (int i = 0; i < memMap.size(); i++) {
-            cout << "  0x" << hex << memMap[i].address << dec
-                 << "     " << memMap[i].size << " B     ";
-            string name = memMap[i].name;
-            while (name.size() < 12) name += " ";
-            cout << name;
-            if (vars.find(memMap[i].name) != vars.end()) {
-                cout << vars[memMap[i].name];
-            }
-            cout << endl;
-            totalSize += memMap[i].size;
-        }
-
-        cout << endl;
-        cout << "  Total stack usage: " << totalSize << " bytes (" << memMap.size() << " variables)" << endl;
-        cout << "  Stack grows downward from 0x" << hex << (0x1000 + totalSize - 4) << dec
-             << " to 0x1000" << endl;
-        cout << endl;
-        cout << "  Memory lifecycle:" << endl;
-        cout << "    1. Variables allocated on stack when declared (PUSH)" << endl;
-        cout << "    2. Accessed via stack offset during execution (LOAD/STORE)" << endl;
-        cout << "    3. Deallocated when scope ends (POP / stack pointer restore)" << endl;
-    }
+    printAssembly(tokens);
+    printDataflow(tokens);
+    printMemory(vars);
 }
 
-// =============================================
-// Main
-// =============================================
-
-int main() {
+int main()
+{
     printHeader("MINI C++ COMPILER - CMPE 152");
-
+    cout << "  Phases: Lexical Analysis -> Parsing -> AST -> Code Gen -> Interpretation" << endl;
+    cout << "  Grammar: Context-Free Grammar (recursive descent)" << endl;
+    cout << "  Lexer:   DFA-based scanner" << endl;
     cout << endl;
-    cout << "  Compiler phases: Lexical Analysis -> Parsing -> AST -> Code Gen -> Interpretation" << endl;
-    cout << "  Grammar type:    Context-Free Grammar (recursive descent)" << endl;
-    cout << "  Lexer type:      DFA-based scanner" << endl;
 
-    // Requirement 2d: Regular expressions and DFA tables
     printDFATables();
-
-    // Requirement 2e-ii: Formal DFA descriptions
     printFormalDFA();
-
-    // Requirement 2e-iii: Input tape simulation
     printInputTapeSimulation();
-
-    // Requirement 2e-iv: Complement of regular language
     printComplementLanguage();
-
-    // Requirement 2f: Context-free grammar
     printCFG();
-
-    // Requirement 2c-iii: Left/right derivation
     printDerivations();
-
-    // Requirement 2g: CNF and GNF
     printCNFandGNF();
 
-    // --- Test cases ---
-    // Each test case shows: tokens, AST, symbol table, output,
-    // assembly code (2h), dataflow analysis (2i), memory management (2j)
-
-    runProgram(testProgram1(), "TEST 1 - Arithmetic Expressions");
-    runProgram(testProgram2(), "TEST 2 - If/Else Conditional");
+    runProgram(testProgram1(), "TEST 1 - Arithmetic");
+    runProgram(testProgram2(), "TEST 2 - If/Else");
     runProgram(testProgram3(), "TEST 3 - While Loop");
 
-    cout << endl;
-    cout << "============================================================" << endl;
-    cout << "  Done. 3 test cases executed successfully." << endl;
-    cout << "============================================================" << endl;
+    cout << "  Done. 3 test cases executed." << endl;
     cout << endl;
 
     return 0;

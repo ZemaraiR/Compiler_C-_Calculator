@@ -1,9 +1,3 @@
-// DFA-based scanner
-// Regex rules:
-//   identifier -> [a-zA-Z_][a-zA-Z0-9_]*
-//   number     -> [0-9]+
-//   Multi-char operators checked before single-char (== before =)
-
 #ifndef LEXER_H
 #define LEXER_H
 
