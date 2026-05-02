@@ -369,15 +369,7 @@ void ParserInterpreter::parseProgram()
 {
     while (!isAtEnd()) 
     {
-        try 
-        {
-            declaration();
-        } 
-        catch (...) 
-        {
-            errors.push_back("Line " + to_string(peek().line) + ": parser error");
-            synchronize();
-        }
+        declaration();
     }
 }
 
