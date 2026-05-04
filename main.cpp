@@ -4,7 +4,6 @@
 //   g++ -std=c++17 -c token.cpp -o token.o
 //   g++ -std=c++17 -c lexer.cpp -o lexer.o
 //   g++ -std=c++17 -c parser.cpp -o parser.o
-//   g++ -std=c++17 -c ASTNode.cpp -o ASTNode.o
 //   g++ -std=c++17 -c display.cpp -o display.o
 //   g++ -std=c++17 -c main.cpp -o main.o
 //   g++ -o mini_compiler token.o lexer.o parser.o ASTNode.o display.o main.o
